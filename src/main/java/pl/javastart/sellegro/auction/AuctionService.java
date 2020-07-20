@@ -1,65 +1,38 @@
 package pl.javastart.sellegro.auction;
 
 import org.springframework.stereotype.Service;
+import pl.javastart.sellegro.repository.AuctionRepository;
 
-import java.io.BufferedReader;
+import javax.transaction.Transactional;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class AuctionService {
 
-    private List<Auction> auctions;
+    private AuctionRepository auctionRepository;
+
 
     private static final String[] ADJECTIVES = {"Niesamowity", "Jedyny taki", "IGŁA", "HIT", "Jak nowy",
             "Perełka", "OKAZJA", "Wyjątkowy"};
 
-    public AuctionService() {
-        try {
-            loadData();
-        } catch (IOException e) {
-            System.out.println("Error loading data: " + e.getMessage());
-            e.printStackTrace();
-        }
+    public AuctionService(AuctionRepository auctionRepository) throws IOException {
+        this.auctionRepository = auctionRepository;
     }
 
-    private void loadData() throws IOException {
-        auctions = new ArrayList<>();
-        ClassLoader classloader = Thread.currentThread().getContextClassLoader();
-        InputStream is = classloader.getResourceAsStream("dane.csv");
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is));
-
+    @Transactional
+    public void updateTitles() {
         Random random = new Random();
-
-        String line = bufferedReader.readLine(); // skip first line
-        while ((line = bufferedReader.readLine()) != null) {
-            String[] data = line.split(",");
-            long id = Long.parseLong(data[0]);
+        List<Auction> auctionList = auctionRepository.findAll();
+        for (Auction auction : auctionList) {
             String randomAdjective = ADJECTIVES[random.nextInt(ADJECTIVES.length)];
-            String title = randomAdjective + " " + data[1] + " " + data[2];
-            BigDecimal price = new BigDecimal(data[4].replace("\\.", ","));
-            LocalDate endDate = LocalDate.parse(data[5]);
-            Auction auction = new Auction(id, title, data[1], data[2], data[3], price, endDate);
-            auctions.add(auction);
+            auction.setTitle(randomAdjective + " " + auction.getCarMake() + " " + auction.getCarModel());
         }
-    }
-
-    public List<Auction> find4MostExpensive() {
-        return auctions.stream()
-                .sorted(Comparator.comparing(Auction::getPrice).reversed())
-                .limit(4)
-                .collect(Collectors.toList());
     }
 
     public List<Auction> findAllForFilters(AuctionFilters auctionFilters) {
+         List<Auction> auctions = auctionRepository.findAll();
         return auctions.stream()
                 .filter(auction -> auctionFilters.getTitle() == null || auction.getTitle().toUpperCase().contains(auctionFilters.getTitle().toUpperCase()))
                 .filter(auction -> auctionFilters.getCarMaker() == null || auction.getCarMake().toUpperCase().contains(auctionFilters.getCarMaker().toUpperCase()))
@@ -69,16 +42,15 @@ public class AuctionService {
     }
 
     public List<Auction> findAllSorted(String sort) {
+        List<Auction> auctions = auctionRepository.findAll();
         Comparator<Auction> comparator = Comparator.comparing(Auction::getTitle);
-        if(sort.equals("title")) {
+        if (sort.equals("title")) {
             comparator = Comparator.comparing(Auction::getTitle);
-        } else if(sort.equals("price")) {
+        } else if (sort.equals("price")) {
             comparator = Comparator.comparing(Auction::getPrice);
-        } else if(sort.equals("color")) {
+        } else if (sort.equals("color")) {
             comparator = Comparator.comparing(Auction::getColor);
         }
-
-
         return auctions.stream()
                 .sorted(comparator)
                 .collect(Collectors.toList());

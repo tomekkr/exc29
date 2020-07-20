@@ -1,5 +1,8 @@
 package pl.javastart.sellegro.auction;
 
+import org.springframework.stereotype.Component;
+
+@Component
 public class AuctionFilters {
 
     private String title;
