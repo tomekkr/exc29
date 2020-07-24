@@ -1,81 +1,57 @@
 package pl.javastart.sellegro.auction;
 
 import org.springframework.stereotype.Service;
-import org.springframework.util.comparator.Comparators;
+import pl.javastart.sellegro.repository.AuctionRepository;
 
-import java.io.BufferedReader;
+import javax.transaction.Transactional;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Random;
-import java.util.stream.Collectors;
+import java.util.*;
 
 @Service
 public class AuctionService {
 
-    private List<Auction> auctions;
+    private AuctionRepository auctionRepository;
 
     private static final String[] ADJECTIVES = {"Niesamowity", "Jedyny taki", "IGŁA", "HIT", "Jak nowy",
             "Perełka", "OKAZJA", "Wyjątkowy"};
 
-    public AuctionService() {
-        try {
-            loadData();
-        } catch (IOException e) {
-            System.out.println("Error loading data: " + e.getMessage());
-            e.printStackTrace();
-        }
+    public AuctionService(AuctionRepository auctionRepository) throws IOException {
+        this.auctionRepository = auctionRepository;
     }
 
-    private void loadData() throws IOException {
-        auctions = new ArrayList<>();
-        ClassLoader classloader = Thread.currentThread().getContextClassLoader();
-        InputStream is = classloader.getResourceAsStream("dane.csv");
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is));
-
+    @Transactional
+    public void updateTitles() {
         Random random = new Random();
-
-        String line = bufferedReader.readLine(); // skip first line
-        while ((line = bufferedReader.readLine()) != null) {
-            String[] data = line.split(",");
-            long id = Long.parseLong(data[0]);
+        List<Auction> auctionList = auctionRepository.findAll();
+        for (Auction auction : auctionList) {
             String randomAdjective = ADJECTIVES[random.nextInt(ADJECTIVES.length)];
-            String title = randomAdjective + " " + data[1] + " " + data[2];
-            BigDecimal price = new BigDecimal(data[4].replace("\\.", ","));
-            LocalDate endDate = LocalDate.parse(data[5]);
-            Auction auction = new Auction(id, title, data[1], data[2], data[3], price, endDate);
-            auctions.add(auction);
+            auction.setTitle(randomAdjective + " " + auction.getCarMake() + " " + auction.getCarModel());
         }
-    }
-
-    public List<Auction> find4MostExpensive() {
-        return auctions.stream()
-                .sorted(Comparator.comparing(Auction::getPrice).reversed())
-                .limit(4)
-                .collect(Collectors.toList());
     }
 
     public List<Auction> findAllForFilters(AuctionFilters auctionFilters) {
-        return auctions.stream()
-                .filter(auction -> auctionFilters.getTitle() == null || auction.getTitle().toUpperCase().contains(auctionFilters.getTitle().toUpperCase()))
-                .collect(Collectors.toList());
+        return auctionRepository.findByTitleContainsIgnoreCaseAndCarMakeContainsIgnoreCaseAndCarModelContainsIgnoreCaseAndColorContainsIgnoreCase
+                (auctionFilters.getTitle(), auctionFilters.getCarMaker(), auctionFilters.getCarModel(), auctionFilters.getColor());
     }
 
     public List<Auction> findAllSorted(String sort) {
-        Comparator<Auction> comparator = Comparator.comparing(Auction::getTitle);
-        if(sort.equals("title")) {
-            comparator = Comparator.comparing(Auction::getTitle);
-        } else if(sort.equals("price")) {
-            comparator = Comparator.comparing(Auction::getPrice);
+        List<Auction> auctions;
+        switch (sort) {
+            case "title":
+                auctions = auctionRepository.findAllByOrderByTitle();
+                break;
+            case "price":
+                auctions = auctionRepository.findAllByOrderByPrice();
+                break;
+            case "color":
+                auctions = auctionRepository.findAllByOrderByColor();
+                break;
+            case "endDate":
+                auctions = auctionRepository.findAllByOrderByEndDate();
+                break;
+            default:
+                auctions = auctionRepository.findAll();
         }
-
-        return auctions.stream()
-                .sorted(comparator)
-                .collect(Collectors.toList());
+        return auctions;
     }
 }
