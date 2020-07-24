@@ -5,10 +5,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuctionFilters {
 
-    private String title;
-    private String carMaker;
-    private String carModel;
-    private String color;
+    private String title = "";
+    private String carMaker = "";
+    private String carModel = "";
+    private String color = "";
 
     public String getTitle() {
         return title;
